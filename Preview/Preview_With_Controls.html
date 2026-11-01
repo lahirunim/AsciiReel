@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Player</title>
+<link id="googleFontsLink" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080808;color:#eee;font-family:ui-monospace,Menlo,monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+#topbar{position:fixed;top:0;left:0;right:0;z-index:100;background:#0f0f0f;border-bottom:1px solid #1e1e1e;padding:8px 12px 0 12px;display:flex;flex-direction:column;gap:8px}
+#loadbar{width:100%;height:2px;background:#1a1a1a;overflow:hidden}#loadbar div{height:100%;width:0%;background:#fff;transition:width .12s linear}
+#controls{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding-bottom:8px}
+#controls button{background:#fff;color:#000;border:0;padding:6px 12px;font-weight:700;font-size:12px;cursor:pointer}
+#controls label{display:flex;align-items:center;gap:5px;font-size:12px;background:#000;padding:4px 7px;border:1px solid #1e1e1e;white-space:nowrap}
+#controls input[type="range"]{width:60px;accent-color:#fff}
+#controls input[type="color"]{width:18px;height:16px;border:0;background:none;cursor:pointer}
+#controls input.hex{width:56px;background:#0a0a0a;color:#eee;border:1px solid #2a2a2a;font-size:11px;padding:2px 4px;font-family:inherit}
+#controls select{background:#000;color:#eee;border:1px solid #2a2a2a;font-size:12px;padding:2px 4px;font-family:inherit;min-width:140px}
+#stage{margin-top:72px;padding:16px;width:100%;max-width:1400px;display:flex;justify-content:center}
+#screen{background:#000;color:#fff;line-height:.85;font-size:12px;white-space:pre;border:1px solid #2a2a2a;box-shadow:0 0 0 1px #111;padding:10px;overflow:auto;max-width:100%}
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div id="loadbar"><div id="loadFill"></div></div>
+  <div id="controls">
+    <button id="playBtn">PAUSE</button>
+    <label>FPS <input id="fps" type="range" min="1" max="60" value="12"><span id="fpsVal">12</span></label>
+    <label>SIZE <input id="size" type="range" min="1" max="32" value="12"><span id="sizeVal">12</span></label>
+    <label>LINE-H <input id="lineH" type="range" min="0.1" max="2" step="0.05" value="0.9"><span id="lineHVal">0.9</span></label>
+    <label>FONT <select id="fontFamily"></select></label>
+    <label><input id="bold" type="checkbox"> BOLD</label>
+    <label>TEXT <input id="fontColor" type="color" value="#ffffff"><input id="fontColorHex" class="hex" type="text" value="#ffffff" maxlength="7" spellcheck="false"></label>
+    <label>BG <input id="bgColor" type="color" value="#000000"><input id="bgColorHex" class="hex" type="text" value="#000000" maxlength="7" spellcheck="false"></label>
+    <label><input id="invert" type="checkbox"> INVERT</label>
+    <label><input id="loop" type="checkbox" checked> LOOP</label>
+  </div>
+</div>
+
+<div id="stage"><pre id="screen">Loading video_data.js...</pre></div>
+
+<script src="video_data.js"></script>
+<script src="animation.js"></script>
+<script>
+// ========== FONT CONFIG - EASY TO ADD MORE ==========
+// ONLINE = loaded from Google Fonts (needs internet)
+const ONLINE_FONTS = [
+  { label: "Courier Prime", value: "'Courier Prime', monospace" },
+  { label: "IBM Plex Mono", value: "'IBM Plex Mono', monospace" },
+  { label: "JetBrains Mono", value: "'JetBrains Mono', monospace" },
+  { label: "Fira Code", value: "'Fira Code', monospace" },
+  { label: "VT323", value: "'VT323', monospace" },
+  { label: "Roboto Mono", value: "'Roboto Mono', monospace" },
+  { label: "Source Code Pro", value: "'Source Code Pro', monospace" },
+  // ADD MORE ONLINE HERE: { label: "Space Mono", value: "'Space Mono', monospace" },
+];
+
+// OFFLINE = system/local fonts (no internet needed)
+const OFFLINE_FONTS = [
+  { label: "Courier New", value: "'Courier New', monospace" },
+  { label: "Consolas", value: "Consolas, monospace" },
+  { label: "Monaco", value: "Monaco, monospace" },
+  { label: "Lucida Console", value: "'Lucida Console', monospace" },
+  { label: "ui-monospace", value: "ui-monospace, monospace" },
+  // ADD MORE OFFLINE HERE: { label: "DejaVu Sans Mono", value: "'DejaVu Sans Mono', monospace" },
+];
+
+// Google Fonts URL that loads all ONLINE fonts above
+// If you add a new ONLINE font, also add it to this URL: https://fonts.google.com -> select font -> copy link
+const GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Fira+Code:wght@400;700&family=Roboto+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=VT323&display=swap";
+// ======================================================
+
+// CODE CONTROL
+const CONFIG = {
+  FPS: 12, SIZE: 12, FONT: "'Courier Prime', monospace", BOLD: false,
+  TEXT_COLOR: "#ffffff", BG_COLOR: "#000000", INVERT: false, LOOP: true,
+  LINE_HEIGHT: 0.9, LETTER_SPACING: "0px"
+};
+
+const el = {
+  screen: document.getElementById('screen'),
+  playBtn: document.getElementById('playBtn'),
+  fps: document.getElementById('fps'), fpsVal: document.getElementById('fpsVal'),
+  size: document.getElementById('size'), sizeVal: document.getElementById('sizeVal'),
+  font: document.getElementById('fontFamily'), bold: document.getElementById('bold'),
+  textColor: document.getElementById('fontColor'), bgColor: document.getElementById('bgColor'),
+  textColorHex: document.getElementById('fontColorHex'), bgColorHex: document.getElementById('bgColorHex'),
+  invert: document.getElementById('invert'), loop: document.getElementById('loop'),
+  lineH: document.getElementById('lineH'), lineHVal: document.getElementById('lineHVal'),
+  loadFill: document.getElementById('loadFill')
+};
+
+function populateFonts(){
+  el.font.innerHTML = "";
+  const onlineGroup = document.createElement('optgroup');
+  onlineGroup.label = "ONLINE - from web (needs internet)";
+  ONLINE_FONTS.forEach(f=>{
+    const opt = document.createElement('option');
+    opt.value = f.value;
+    opt.textContent = `[ONLINE] ${f.label}`;
+    onlineGroup.appendChild(opt);
+  });
+  el.font.appendChild(onlineGroup);
+
+  const offlineGroup = document.createElement('optgroup');
+  offlineGroup.label = "OFFLINE - local/system (no internet)";
+  OFFLINE_FONTS.forEach(f=>{
+    const opt = document.createElement('option');
+    opt.value = f.value;
+    opt.textContent = `[OFFLINE] ${f.label}`;
+    offlineGroup.appendChild(opt);
+  });
+  el.font.appendChild(offlineGroup);
+}
+
+let buffer=[], frameIdx=0, playing=true, timer=null, curFps=CONFIG.FPS;
+
+function init(){
+  populateFonts();
+  document.getElementById('googleFontsLink').href = GOOGLE_FONTS_URL;
+
+  if(typeof FRAMES==='undefined'){el.screen.textContent='video_data.js not found - run VidASCII.py';return;}
+  el.fps.value=CONFIG.FPS; el.fpsVal.textContent=CONFIG.FPS;
+  el.size.value=CONFIG.SIZE; el.sizeVal.textContent=CONFIG.SIZE;
+  el.font.value=CONFIG.FONT; el.bold.checked=CONFIG.BOLD;
+  el.textColor.value=CONFIG.TEXT_COLOR; el.bgColor.value=CONFIG.BG_COLOR;
+  el.textColorHex.value=CONFIG.TEXT_COLOR; el.bgColorHex.value=CONFIG.BG_COLOR;
+  el.invert.checked=CONFIG.INVERT; el.loop.checked=CONFIG.LOOP;
+  el.lineH.value=CONFIG.LINE_HEIGHT; el.lineHVal.textContent=CONFIG.LINE_HEIGHT;
+  curFps=CONFIG.FPS;
+  el.screen.style.fontSize=CONFIG.SIZE+'px';
+  el.screen.style.fontFamily=CONFIG.FONT;
+  el.screen.style.fontWeight=CONFIG.BOLD?'700':'400';
+  el.screen.style.color=CONFIG.TEXT_COLOR;
+  el.screen.style.background=CONFIG.BG_COLOR;
+  el.screen.style.lineHeight=CONFIG.LINE_HEIGHT;
+  el.screen.style.letterSpacing=CONFIG.LETTER_SPACING;
+  buffer=FRAMES[0].split(''); render(); play();
+}
+function render(){let out='';for(let y=0;y<H;y++)out+=buffer.slice(y*W,(y+1)*W).join('')+'\n';el.screen.textContent=out;el.loadFill.style.width=(frameIdx/Math.max(1,FRAMES.length-1)*100)+'%';}
+function applyDiff(d){for(let dd of d){if(dd.length===2){let[p,c]=dd;if(p>=0&&p<buffer.length)buffer[p]=CHARS[c]||' ';}else if(dd.length===3){let[p,r,c]=dd,ch=CHARS[c]||' ';for(let i=0;i<r;i++){let pp=p+i;if(pp>=0&&pp<buffer.length)buffer[pp]=ch;}}}}
+function nextFrame(){if(frameIdx>=FRAMES.length-1){if(el.loop.checked){frameIdx=0;buffer=FRAMES[0].split('');render();frameIdx=1;return;}else{pause();return;}} if(frameIdx>0)applyDiff(FRAMES[frameIdx]);render();frameIdx++;}
+function play(){if(timer)clearInterval(timer);playing=true;el.playBtn.textContent='PAUSE';timer=setInterval(nextFrame,1000/curFps);}
+function pause(){if(timer)clearInterval(timer);playing=false;el.playBtn.textContent='PLAY';}
+
+el.playBtn.onclick=()=>playing?pause():play();
+el.fps.oninput=e=>{curFps=parseFloat(e.target.value);el.fpsVal.textContent=curFps;if(playing){clearInterval(timer);timer=setInterval(nextFrame,1000/curFps);}};
+el.size.oninput=e=>{el.screen.style.fontSize=e.target.value+'px';el.sizeVal.textContent=e.target.value;};
+el.font.onchange=e=>{el.screen.style.fontFamily=e.target.value;};
+el.bold.onchange=e=>{el.screen.style.fontWeight=e.target.checked?'700':'400';};
+el.textColor.oninput=e=>{el.screen.style.color=e.target.value;};
+el.bgColor.oninput=e=>{el.screen.style.background=e.target.value;};
+el.invert.onchange=e=>{if(e.target.checked){let t=el.screen.style.color,b=el.screen.style.background;el.screen.style.color=b;el.screen.style.background=t;}else{el.screen.style.color=el.textColor.value;el.screen.style.background=el.bgColor.value;}};
+el.lineH.oninput=e=>{el.screen.style.lineHeight=e.target.value;el.lineHVal.textContent=e.target.value;};
+
+init();
+</script>
+</body>
+</html>
