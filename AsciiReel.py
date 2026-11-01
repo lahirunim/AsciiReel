@@ -1,0 +1,185 @@
+import os
+import sys
+import json
+
+print("=== VidASCII Optimized Converter ===")
+
+try:
+    import cv2
+    import numpy as np
+except ImportError as e:
+    print(f"\nERROR: {e}")
+    print("Run: pip install opencv-python numpy")
+    input("\nPress Enter to close...")
+    sys.exit(1)
+
+# ================== SETTINGS - CHANGE HERE ==================
+VIDEO_SOURCE = "input.mp4"
+OUTPUT_FILE = "video_data.js"
+WIDTH = 200
+TARGET_FPS = 12
+BLACK_THRESHOLD = 100
+ASCII_CHARS = [" ","░","▒","▓","█"] #[" ","░","▒","▓","█"] #[" ", ".", "1", "0", "@"]
+CHAR_ASPECT = 0.5
+# ============================================================
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+possible_paths = [
+    VIDEO_SOURCE,
+    os.path.join(script_dir, VIDEO_SOURCE),
+    os.path.join(os.getcwd(), VIDEO_SOURCE),
+]
+
+found_path = None
+for p in possible_paths:
+    if os.path.exists(p):
+        found_path = p
+        break
+
+if not found_path:
+    print(f"\n'{VIDEO_SOURCE}' not found. Searching folder...")
+    print(f"Looking in: {script_dir}")
+    try:
+        files = os.listdir(script_dir)
+        print(f"Files there: {files}")
+        mp4s = [f for f in files if f.lower().endswith(('.mp4','.mov','.avi','.mkv'))]
+        if mp4s:
+            print(f"Found videos: {mp4s}")
+            # use first mp4 found
+            found_path = os.path.join(script_dir, mp4s[0])
+            print(f"Auto-using: {found_path}")
+            VIDEO_SOURCE = mp4s[0]
+        else:
+            print("\nERROR: No video files found in folder!")
+            print("Make sure your video is in SAME folder as VidASCII.py")
+            print("And it should be named input.mp4")
+            print("\nCommon fix: Windows hides .mp4 extension")
+            print("Your file might be named input.mp4.mp4 - rename it to input.mp4")
+    except Exception as e:
+        print(f"Error listing folder: {e}")
+
+    if not found_path:
+        input("\nPress Enter to close...")
+        sys.exit(1)
+
+VIDEO_SOURCE = found_path
+print(f"\nUsing video: {VIDEO_SOURCE}")
+
+cap = cv2.VideoCapture(VIDEO_SOURCE)
+if not cap.isOpened():
+    print(f"ERROR: Could not open {VIDEO_SOURCE}")
+    input("\nPress Enter to close...")
+    sys.exit(1)
+
+orig_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+orig_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+orig_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+if total_frames == 0:
+    print("ERROR: Video has 0 frames")
+    input("\nPress Enter to close...")
+    sys.exit(1)
+
+aspect = orig_h / float(orig_w) if orig_w else 1
+H = int(aspect * WIDTH * CHAR_ASPECT)
+H = max(1, H)
+
+keep_every = orig_fps / TARGET_FPS if TARGET_FPS < orig_fps else 1
+next_keep = 0.0
+
+print(f"Input: {orig_w}x{orig_h} {orig_fps:.1f}fps {total_frames} frames")
+print(f"Output ASCII: {WIDTH}x{H} @ {TARGET_FPS}fps")
+print(f"Mode: Optimized Delta")
+print()
+
+frames_data = []
+prev_indices = None
+frame_idx = 0
+kept = 0
+
+def show_bar(current, total, width=30):
+    pct = current / total if total else 1
+    filled = int(width * pct)
+    bar = "#" * filled + "-" * (width - filled)
+    sys.stdout.write(f"\r[{bar}] {pct*100:5.1f}% {current}/{total} kept:{kept}")
+    sys.stdout.flush()
+
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
+
+    if frame_idx >= next_keep:
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        resized = cv2.resize(gray, (WIDTH, H), interpolation=cv2.INTER_AREA)
+        indices = (resized.astype(float) / 255.0 * (len(ASCII_CHARS) - 1)).astype(int)
+        indices[resized < BLACK_THRESHOLD] = 0
+        flat = indices.flatten().tolist()
+
+        if prev_indices is None:
+            first_str = "".join(ASCII_CHARS[i] for i in flat)
+            frames_data.append(first_str)
+        else:
+            diff = []
+            i = 0
+            N = len(flat)
+            while i < N:
+                if flat[i] != prev_indices[i]:
+                    pos = i
+                    ci = flat[i]
+                    run = 1
+                    while i + run < N and flat[i+run] == ci and flat[i+run] != prev_indices[i+run]:
+                        run += 1
+                        if run >= 200:
+                            break
+                    if run > 1:
+                        diff.append([pos, run, ci])
+                    else:
+                        diff.append([pos, ci])
+                    i += run
+                else:
+                    i += 1
+            frames_data.append(diff)
+
+        prev_indices = flat
+        kept += 1
+        next_keep += keep_every
+
+    frame_idx += 1
+    if frame_idx % 2 == 0:
+        show_bar(frame_idx, total_frames)
+
+cap.release()
+show_bar(total_frames, total_frames)
+print("\n")
+
+if kept == 0:
+    print("No frames converted")
+    input("\nPress Enter...")
+    sys.exit(1)
+
+# Write to same folder as script, not cwd
+output_path = os.path.join(script_dir, OUTPUT_FILE)
+with open(output_path, "w", encoding="utf-8") as out:
+    out.write(f"// Generated by VidASCII.py - Optimized Delta\n")
+    out.write(f"const W = {WIDTH};\n")
+    out.write(f"const H = {H};\n")
+    out.write(f"const FPS = {TARGET_FPS};\n")
+    out.write(f"const CHARS = {json.dumps(''.join(ASCII_CHARS))};\n")
+    out.write(f"const FRAMES = [\n")
+    for idx, fr in enumerate(frames_data):
+        out.write(f"  {json.dumps(fr, separators=(',',':'))},\n")
+    out.write("];\n")
+    out.write("const asciiVideoData = FRAMES;\n")
+
+js_size = os.path.getsize(output_path)
+full_size = WIDTH * H * kept
+saved = (1 - js_size / max(1, full_size)) * 100
+
+print(f"=== SUCCESS ===")
+print(f"{kept} frames -> {output_path}")
+print(f"Full would be ~{full_size/1024:.1f}KB, optimized is {js_size/1024:.1f}KB (saved {saved:.1f}%)")
+print(f"Now open web.html")
+print()
+input("Press Enter to close...")
