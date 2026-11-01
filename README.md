@@ -1,4 +1,4 @@
-<img width="1600" height="400" alt="screenshot 2026-11-01 at 11-09-18 ascii player" src="https://github.com/user-attachments/assets/1b743846-3c3a-4529-a8b6-007b2eb0dada" />
+<img width="1600" height="400" alt="Artboard 1" src="https://github.com/user-attachments/assets/96517ab5-e5d1-4df7-90f2-a23cf91d30f2" />
 
 # AsciiReel
 
