@@ -30,7 +30,6 @@ python AsciiReel.py
 - [ ] Graphical interface
 - [ ] Smaller output files
 - [ ] Colour support
-- [ ] Choose input and output file names from the command line
 
 ## AI disclosure
 Parts of this code were generated with AI assistance and then edited and tested by the author.
