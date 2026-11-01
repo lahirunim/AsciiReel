@@ -25,6 +25,16 @@ pip install -r requirements.txt
 python AsciiReel.py
 ```
 3. The result, `video_data.js`, appears in the same folder.
+   
+## Preview
+1. Copy `video_data.js` into the `previews` folder, next to the preview pages.
+2. Open one of the pages in your web browser by double-clicking it:
+   - `[Preview_With_Controls.html]`: idk test by yourself
+   - `[Preview_Tiles.html]`: idk test by yourself, its for backgrounds
+   - `[Preview_Overlap.html]`: this is little bit tricky this overlap one ascii animation on another. rename those files like "video_data.js" and "video_data_2.js".
+3. The animation plays with the controls.
+
+If the page is blank, press F12 in the browser and check the Console tab. The usual cause is a file name that doesn't match.
 
 ## Roadmap
 - [ ] Graphical interface
