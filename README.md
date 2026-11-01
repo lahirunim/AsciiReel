@@ -27,6 +27,3 @@ experience entirely on the client side.
 
 <img width="548" height="480" alt="vlcsnap-2026-04-24-15h13m52s820" src="https://github.com/user-attachments/assets/c04bdfd7-a938-499a-8802-51a3023e6305" />
 
-
-## License
-MIT
