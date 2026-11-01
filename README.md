@@ -4,7 +4,6 @@ Convert MP4 video into ASCII animation that plays as pure JavaScript, with no vi
 
 ## Features
 - Converts an MP4 into a `.js` file that plays in the browser
-- [add only features that work today]
 
 ## Requirements
 - Python 3.xx
@@ -18,27 +17,22 @@ pip install -r requirements.txt
 ```
 
 ## Usage
+1. Put your video in the same folder as `AsciiReel.py` and name it `input.mp4`.
+2. Run:
 ```
-python [your_file].py [input.mp4] [video_data.js]
+python AsciiReel.py
 ```
-[edit this to match your script]
+3. The result, `video_data.js`, appears in the same folder.
 
 ## Roadmap
 - [ ] Graphical interface
 - [ ] Smaller output files
 - [ ] Colour support
+- [ ] Choose input and output file names from the command line
 
 ## AI disclosure
 Parts of this code were generated with AI assistance and then edited and tested by the author.
 
 ## License
 MIT. See the LICENSE file.
-
-## Requirements (source)
-
-- Python 3.x
-- opencv-python (`pip install opencv-python`)
-
-
-<img width="548" height="480" alt="vlcsnap-2026-04-24-15h13m52s820" src="https://github.com/user-attachments/assets/c04bdfd7-a938-499a-8802-51a3023e6305" />
 
